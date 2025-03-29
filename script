@@ -1,0 +1,143 @@
+print("MatchaV2")
+
+local Player = game.Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Mouse = Player:GetMouse()
+local Workspace = game:GetService("Workspace")
+local Target = nil
+local TargetPart = nil
+local Enabled = false
+
+-- UI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MatchaV2 GUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = Player.PlayerGui
+
+local TextButton = Instance.new("TextButton")
+TextButton.Name = "Target Selector"
+TextButton.Text = "MatchaV2:\nOFF"
+TextButton.RichText = true -- Enables proper color formatting
+TextButton.Font = Enum.Font.GothamBold
+TextButton.TextSize = 20
+TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextButton.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+TextButton.Size = UDim2.new(0, 110, 0, 55)
+TextButton.Position = UDim2.new(0.5, 0, 0.15, 0)
+TextButton.AnchorPoint = Vector2.new(0.5, 0.5)
+TextButton.Draggable = true
+TextButton.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0.15, 0)
+UICorner.Parent = TextButton
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Thickness = 3
+UIStroke.Color = Color3.fromRGB(10, 10, 10)
+UIStroke.Parent = TextButton
+
+local function highlight(Target)
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player.Character then
+            for _, obj in ipairs(player.Character:GetChildren()) do
+                if obj:IsA("Highlight") then
+                    obj:Destroy()
+                end
+            end
+        end
+    end
+
+    if Target and Target.Character then
+        local highlight = Instance.new("Highlight")
+        highlight.Parent = Target.Character
+        highlight.FillColor = Color3.fromRGB(255, 0, 255) -- Pink ESP
+        highlight.OutlineColor = Color3.new(0, 0, 0)
+        highlight.FillTransparency = 0.6 -- 60% transparent ESP
+        highlight.OutlineTransparency = 0
+    end
+end
+
+local function FindNearestEnemy()
+    local ClosestDistance, ClosestPlayer, ClosestPart = math.huge, nil, nil
+    local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= Player then
+            local Character = player.Character
+            if Character and Character:FindFirstChild("Humanoid") and Character.Humanoid.Health > 0 then
+                local Part = Character:FindFirstChild("Head")
+                if Part then
+                    local Position, OnScreen = Camera:WorldToViewportPoint(Part.Position)
+                    local DistanceFromCenter = (Vector2.new(Position.X, Position.Y) - ScreenCenter).Magnitude
+
+                    if OnScreen and DistanceFromCenter < ClosestDistance then
+                        ClosestPlayer = player
+                        ClosestPart = Part
+                        ClosestDistance = DistanceFromCenter
+                    end
+                end
+            end
+        end
+    end
+
+    return ClosestPlayer, ClosestPart
+end
+
+TextButton.MouseButton1Click:Connect(function()
+    Enabled = not Enabled
+    TextButton.Text = Enabled and "MatchaV2:\n<font color='rgb(255,0,0)'>ON</font>" or "MatchaV2:\n<font color='rgb(255,255,255)'>OFF</font>"
+
+    if Enabled then
+        Target, TargetPart = FindNearestEnemy()
+        if Target then
+            highlight(Target)
+        end
+    else
+        for _, player in ipairs(game.Players:GetPlayers()) do
+            if player.Character then
+                for _, obj in ipairs(player.Character:GetChildren()) do
+                    if obj:IsA("Highlight") then
+                        obj:Destroy()
+                    end
+                end
+            end
+        end
+        Target, TargetPart = nil, nil
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if Enabled and Target and TargetPart then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, TargetPart.Position)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(Input, Processed)
+    if not Processed then
+        if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+            Enabled = not Enabled
+            TextButton.Text = Enabled and "MatchaV2:\n<font color='rgb(255,0,0)'>ON</font>" or "MatchaV2:\n<font color='rgb(255,255,255)'>OFF</font>"
+
+            if Enabled then
+                Target, TargetPart = FindNearestEnemy()
+                if Target then
+                    highlight(Target)
+                end
+            else
+                for _, player in ipairs(game.Players:GetPlayers()) do
+                    if player.Character then
+                        for _, obj in ipairs(player.Character:GetChildren()) do
+                            if obj:IsA("Highlight") then
+                                obj:Destroy()
+                            end
+                        end
+                    end
+                end
+                Target, TargetPart = nil, nil
+            end
+        end
+    end
+end)
